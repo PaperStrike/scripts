@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         哔哩哔哩直播 码率
 // @namespace    https://github.com/PaperStrike
-// @version      2024-01-07
+// @version      1.0.0
 // @description  展示哔哩哔哩直播“预估视频片段码率/服务端回报视频码率”信息。查看方法：右键播放区域，点击“视频统计信息”。
 // @author       sliphua
 // @match        https://live.bilibili.com/*
