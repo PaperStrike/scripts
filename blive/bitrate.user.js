@@ -66,11 +66,6 @@
      * @param {Response} response
      */
     async parseFlv(response) {
-      if (!response.body) {
-        this.supported = false;
-        return;
-      }
-
       const read = this.spyResponseBodyReader(response);
 
       /** @type {Uint8Array|null} */
@@ -87,8 +82,8 @@
         view.push([packetSize, packetTimestamp]);
         if (view.length < 2) continue; // not enough packets
 
-        // Keep the view minimal and >= 5s
-        while (view.length >= 2) {
+        // Keep the window minimal and >= 5s
+        while (view.length > 2) {
           const [[firstSize, _firstTimestamp], [_secondSize, secondTimestamp]] = view;
           if (packetTimestamp - secondTimestamp < 5000) break;
           size -= firstSize;
@@ -111,9 +106,7 @@
     async parseFlvPacket(read, buffer) {
       while (buffer.byteLength < 11) {
         const { value, done } = await read();
-        if (done) {
-          return [null, 0, 0];
-        }
+        if (done) return [null, 0, 0];
         buffer = new Uint8Array([...buffer, ...value]);
       }
 
