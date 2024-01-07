@@ -73,21 +73,31 @@
 
       const read = this.spyResponseBodyReader(response);
 
+      /** @type {Uint8Array|null} */
       let buffer = new Uint8Array(0);
       let size = 0;
-      let lastTimestamp = 0;
-      while (true) {
+      /** @type {[size: number, timestamp: number][]|null} */
+      const view = [];
+      while (buffer) {
         const [nextBuffer, packetSize, packetTimestamp] = await this.parseFlvPacket(read, buffer);
-        if (!nextBuffer) break;
         buffer = nextBuffer;
+        if (packetSize === 0) continue; // not a video packet
+
         size += packetSize;
-        const durationMs = packetTimestamp - lastTimestamp;
-        if (size && durationMs >= 5000) {
-          this.supported = true;
-          this.packetKbps = 8 * size / durationMs;
-          size = 0;
-          lastTimestamp = packetTimestamp;
+        view.push([packetSize, packetTimestamp]);
+        if (view.length < 2) continue; // not enough packets
+
+        // Keep the view minimal and >= 5s
+        while (view.length >= 2) {
+          const [[firstSize, _firstTimestamp], [_secondSize, secondTimestamp]] = view;
+          if (packetTimestamp - secondTimestamp < 5000) break;
+          size -= firstSize;
+          view.shift();
         }
+
+        const [[_firstSize, firstTimestamp]] = view;
+        this.packetKbps = 8 * size / (packetTimestamp - firstTimestamp);
+        this.supported = true;
       }
 
       this.supported = false;
@@ -129,7 +139,7 @@
       const type = flags & 0b11111;
       if (type === 0x09) {
         const timestamp = (t0 << 16) | (t1 << 8) | t2 | (tE << 24); // in ms
-        return [nextBuffer, dataSize, timestamp];
+        return [nextBuffer, totalSize, timestamp];
       }
 
       return [nextBuffer, 0, 0];
